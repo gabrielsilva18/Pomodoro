@@ -1,12 +1,20 @@
 import { Component, signal } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { TelaInicial } from './tela-inicial/tela-inicial';
 
+/**
+ * Componente raiz da aplicação.
+ *
+ * É o ponto de entrada principal montado em <app-root> no index.html.
+ * Ele importa o componente `TelaInicial` para exibir o timer.
+ */
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet],
+  standalone: true,
+  imports: [TelaInicial],
   templateUrl: './app.html',
-  styleUrl: './app.scss'
+  styleUrls: ['./app.scss']
 })
 export class App {
+  // Título da aplicação usado apenas para referência interna.
   protected readonly title = signal('pomodoro_timer');
 }
