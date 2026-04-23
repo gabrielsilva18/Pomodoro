@@ -1,0 +1,28 @@
+<div class="timer">
+  <h1>Pomodoro</h1>
+  
+  <div class="timer-display">
+    {{ timer() }}
+  </div>
+
+  <button 
+    class="main-button" 
+    [class.paused]="isRunning()"
+    (click)="toggleTimer()">
+    {{ isRunning() ? 'PAUSAR' : 'INICIAR' }}
+  </button>
+
+  <div class="actions">
+    <button class="secondary-button reset-button" (click)="resetTimer()">
+      Reset
+    </button>
+    
+    <button class="secondary-button" (click)="solicitarMinutos()">
+      Mudar Duração
+    </button>
+  </div>
+
+  <p class="status">
+    {{ workDuration() ? 'Pronto para focar!' : 'Configure a duração primeiro' }}
+  </p>
+</div>
