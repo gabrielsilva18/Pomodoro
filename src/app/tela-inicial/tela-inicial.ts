@@ -1,8 +1,6 @@
-import { Component, OnDestroy, signal, computed, AfterViewInit } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
+import { AfterViewInit, Component, inject, OnDestroy, PLATFORM_ID, signal, computed } from '@angular/core';
 
-// ====================== TIPAGEM CORRETA ======================
-// 🔧 ANTES: você usava string solta → propenso a erro
-// ✅ AGORA: controlamos exatamente os estados possíveis
 type SessionType = 'work' | 'shortBreak' | 'longBreak';
 
 @Component({
@@ -13,30 +11,19 @@ type SessionType = 'work' | 'shortBreak' | 'longBreak';
   styleUrls: ['./tela-inicial.scss'],
 })
 export class TelaInicial implements OnDestroy, AfterViewInit {
+  private readonly platformId = inject(PLATFORM_ID);
+  private readonly isBrowser = isPlatformBrowser(this.platformId);
 
-  // ====================== DURAÇÕES SEPARADAS ======================
-  // ❌ ANTES: você usava UMA variável (workDuration) pra tudo
-  // ✔️ PROBLEMA: pausa sobrescrevia trabalho → bug no reset isso ocorre por que eu nao levava em conta a diferenca entre tempo de trabalho e tempo de descanso
-
-  // ✅ AGORA: cada tipo de sessão tem sua própria duração
-  workDuration = signal(25 * 60); //tempo usadon como padrão, mas pode ser alterado pelo usuário
+  workDuration = signal(25 * 60);
   shortBreakDuration = signal(5 * 60);
   longBreakDuration = signal(15 * 60);
 
-  // ====================== ESTADO PRINCIPAL ======================
-  // 🔥 ISSO É O CORAÇÃO DA APLICAÇÃO
-  // define em que fase o app está
-  controlSession = signal<SessionType>('work');//sesao inical de trablho
+  controlSession = signal<SessionType>('work');
 
-  // ====================== CONTADOR DE CICLOS ======================
-  // ❌ ANTES: incrementava sempre
-  // ✅ AGORA: só incrementa quando termina WORK
   Countcicles = signal(0);
 
-  // ====================== TEMPO RESTANTE ======================
   remainingSeconds = signal(this.workDuration());
 
-  // ====================== DISPLAY ======================
   timer = computed(() => {
     const seconds = this.remainingSeconds();
     return seconds > 0 ? this.formatTime(seconds) : '00:00';
@@ -45,13 +32,21 @@ export class TelaInicial implements OnDestroy, AfterViewInit {
   isRunning = signal(false);
   private intervalId?: number;
 
-  // ====================== INICIALIZAÇÃO ======================
   ngAfterViewInit() {
-    this.solicitarMinutos(true);
+    if (this.isBrowser) {
+      this.solicitarMinutos(true);
+    } else {
+      this.startWork();
+    }
   }
 
-  // ====================== CONFIGURAR TEMPO DE TRABALHO ======================
   solicitarMinutos(isFirstTime: boolean = false) {
+    if (!this.isBrowser) {
+      this.workDuration.set(25 * 60);
+      this.startWork();
+      return;
+    }
+
     const mensagem = isFirstTime
       ? "Bem-vindo! Digite a duração do Pomodoro em minutos:"
       : "Digite a nova duração em minutos:";
@@ -74,8 +69,6 @@ export class TelaInicial implements OnDestroy, AfterViewInit {
 
       this.workDuration.set(duracao);
 
-      // 🔧 IMPORTANTE:
-      // Sempre que muda duração → reinicia no estado WORK
       this.startWork();
 
       if (!isFirstTime) {
@@ -87,7 +80,6 @@ export class TelaInicial implements OnDestroy, AfterViewInit {
     }
   }
 
-  // ====================== CONTROLES ======================
   toggleTimer() {
     this.isRunning() ? this.pauseTimer() : this.startTimer();
   }
@@ -95,10 +87,6 @@ export class TelaInicial implements OnDestroy, AfterViewInit {
   resetTimer() {
     this.pauseTimer();
 
-    // 🔧 ANTES: sempre voltava pro workDuration
-    // ❌ errado se estiver em pausa
-
-    // ✅ AGORA: respeita o estado atual
     const current = this.controlSession();
 
     if (current === 'work') {
@@ -110,7 +98,6 @@ export class TelaInicial implements OnDestroy, AfterViewInit {
     }
   }
 
-  // ====================== TIMER ======================
   private startTimer() {
     if (this.isRunning() || this.remainingSeconds() <= 0) return;
 
@@ -122,9 +109,6 @@ export class TelaInicial implements OnDestroy, AfterViewInit {
         this.pauseTimer();
         this.remainingSeconds.set(0);
 
-        // 🔥 AQUI ERA O MAIOR ERRO DO SEU CÓDIGO
-        // ❌ você não chamava nenhuma lógica de troca
-        // ✅ agora chamamos o cérebro da aplicação
         this.handleSessionEnd();
 
         return;
@@ -147,31 +131,25 @@ export class TelaInicial implements OnDestroy, AfterViewInit {
     }
   }
 
-  // ====================== LÓGICA DE SESSÃO ======================
   private handleSessionEnd() {
     const current = this.controlSession();
 
     if (current === 'work') {
 
-      // ✅ só incrementa quando termina trabalho
       this.Countcicles.update(c => c + 1);
 
       if (this.Countcicles() === 4) {
-        // 🔥 ciclo completo → pausa longa
         this.Countcicles.set(0);
         this.startLongBreak();
       } else {
-        // 🔹 pausa curta normal
         this.startShortBreak();
       }
 
     } else {
-      // 🔁 terminou pausa → volta pro trabalho
       this.startWork();
     }
   }
 
-  // ====================== TRANSIÇÕES ======================
   private startWork() {
     this.controlSession.set('work');
     this.remainingSeconds.set(this.workDuration());
@@ -180,16 +158,15 @@ export class TelaInicial implements OnDestroy, AfterViewInit {
   private startShortBreak() {
     this.controlSession.set('shortBreak');
     this.remainingSeconds.set(this.shortBreakDuration());
-    window.alert("Pausa curta! ☕");
+    if (this.isBrowser) window.alert("Pausa curta!");
   }
 
   private startLongBreak() {
     this.controlSession.set('longBreak');
     this.remainingSeconds.set(this.longBreakDuration());
-    window.alert("Pausa longa! 🧠");
+    if (this.isBrowser) window.alert("Pausa longa!");
   }
 
-  // ====================== FORMATADOR ======================
   private formatTime(seconds: number): string {
     const minutes = Math.floor(seconds / 60);
     const remaining = seconds % 60;
