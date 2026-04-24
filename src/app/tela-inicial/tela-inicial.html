@@ -1,3 +1,12 @@
+<div class= "input-timer">
+
+  <input type="number" placeholder="Duração do Pomodoro (minutos)" #durationPomodoro>
+  <button (click)="setWorkDuration(durationPomodoro.value)">
+    Definir Duração
+  </button>
+</div>
+
+
 <div class="timer">
   <h1>Pomodoro</h1>
   
@@ -17,7 +26,7 @@
       Reset
     </button>
     
-    <button class="secondary-button" (click)="solicitarMinutos()">
+    <button class="secondary-button" (click)="setWorkDuration(durationPomodoro.value)">
       Mudar Duração
     </button>
   </div>

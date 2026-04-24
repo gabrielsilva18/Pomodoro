@@ -1,6 +1,7 @@
 import { isPlatformBrowser } from '@angular/common';
 import { AfterViewInit, Component, inject, OnDestroy, PLATFORM_ID, signal, computed } from '@angular/core';
 
+
 type SessionType = 'work' | 'shortBreak' | 'longBreak';
 
 @Component({
@@ -32,53 +33,25 @@ export class TelaInicial implements OnDestroy, AfterViewInit {
   isRunning = signal(false);
   private intervalId?: number;
 
-  ngAfterViewInit() {
-    if (this.isBrowser) {
-      this.solicitarMinutos(true);
-    } else {
-      this.startWork();
-    }
+ngAfterViewInit() {
+  if (!this.isBrowser) return;
+
+  this.startWork();
+}
+
+setWorkDuration(value: string) {
+  const minutes = parseInt(value, 10);
+
+  if (isNaN(minutes) || minutes <= 0) {
+    this.workDuration.set(25 * 60);
+  } else {
+    this.workDuration.set(minutes * 60);
   }
 
-  solicitarMinutos(isFirstTime: boolean = false) {
-    if (!this.isBrowser) {
-      this.workDuration.set(25 * 60);
-      this.startWork();
-      return;
-    }
-
-    const mensagem = isFirstTime
-      ? "Bem-vindo! Digite a duração do Pomodoro em minutos:"
-      : "Digite a nova duração em minutos:";
-
-    const input = window.prompt(mensagem);
-
-    if (input === null) {
-      if (isFirstTime) {
-        this.workDuration.set(25 * 60);
-        this.startWork();
-        window.alert("Usando 25 minutos como padrão.");
-      }
-      return;
-    }
-
-    const minutos = parseInt(input, 10);
-
-    if (!isNaN(minutos) && minutos > 0) {
-      const duracao = minutos * 60;
-
-      this.workDuration.set(duracao);
-
-      this.startWork();
-
-      if (!isFirstTime) {
-        window.alert(`Duração definida para ${minutos} minutos.`);
-      }
-    } else {
-      window.alert("Digite um número válido.");
-      if (isFirstTime) this.solicitarMinutos(true);
-    }
+  if (this.controlSession() === 'work') {
+    this.remainingSeconds.set(this.workDuration());
   }
+}
 
   toggleTimer() {
     this.isRunning() ? this.pauseTimer() : this.startTimer();
@@ -148,7 +121,7 @@ export class TelaInicial implements OnDestroy, AfterViewInit {
     } else {
       this.startWork();
     }
-  }
+  } 
 
   private startWork() {
     this.controlSession.set('work');
