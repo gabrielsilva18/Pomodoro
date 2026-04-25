@@ -1,20 +1,28 @@
-
-<div class= "input-timer">
-
-  <input type="number" placeholder="Duração do Pomodoro (minutos)" #durationPomodoro>
-  <button (click)="setWorkDuration(durationPomodoro.value)">
-    Definir Duração
-  </button>
-</div>
-
-
 <div class="timer">
+
   <h1>Pomodoro</h1>
-  
+
+  <!-- INPUT DE DURAÇÃO -->
+  <div class="input-timer">
+    <input 
+      type="number" 
+      placeholder="Duração (min)"
+      #durationPomodoro
+      min="1"
+    >
+    <button 
+      (click)="setWorkDuration(durationPomodoro.value)"
+      [disabled]="!durationPomodoro.value">
+      Definir
+    </button>
+  </div>
+
+  <!-- DISPLAY DO TEMPO -->
   <div class="timer-display">
     {{ timer() }}
   </div>
 
+  <!-- BOTÃO PRINCIPAL -->
   <button 
     class="main-button" 
     [class.paused]="isRunning()"
@@ -22,14 +30,18 @@
     {{ isRunning() ? 'PAUSAR' : 'INICIAR' }}
   </button>
 
+  <!-- AÇÕES -->
   <div class="actions">
-    <button class="secondary-button reset-button" (click)="resetTimer()">
+    <button 
+      class="secondary-button reset-button" 
+      (click)="resetTimer()">
       Reset
     </button>
-  
   </div>
 
+  <!-- STATUS DINÂMICO -->
   <p class="status">
-    {{ workDuration() ? 'Pronto para focar!' : 'Configure a duração primeiro' }}
+    {{ message() }}
   </p>
+
 </div>
