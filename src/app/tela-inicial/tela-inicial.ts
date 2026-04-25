@@ -1,6 +1,5 @@
 import { isPlatformBrowser } from '@angular/common';
-import { AfterViewInit, Component, inject, OnDestroy, PLATFORM_ID, signal, computed } from '@angular/core';
-
+import { AfterViewInit, Component, inject, OnDestroy, PLATFORM_ID, signal, computed, Renderer2 } from '@angular/core';
 
 type SessionType = 'work' | 'shortBreak' | 'longBreak';
 
@@ -11,9 +10,12 @@ type SessionType = 'work' | 'shortBreak' | 'longBreak';
   templateUrl: './tela-inicial.html',
   styleUrls: ['./tela-inicial.scss'],
 })
+
 export class TelaInicial implements OnDestroy, AfterViewInit {
   private readonly platformId = inject(PLATFORM_ID);
   private readonly isBrowser = isPlatformBrowser(this.platformId);
+  private renderer = inject(Renderer2);
+
 
   workDuration = signal(25 * 60);
   shortBreakDuration = signal(5 * 60);
@@ -37,6 +39,43 @@ ngAfterViewInit() {
   if (!this.isBrowser) return;
 
   this.startWork();
+}
+
+/* Atualiza a classe do body com base na sessão atual, opara que assim eu consiga mudar a cor de fundo baseadio na sessao atual */
+updateBodyClass() {
+  const body = document.body;
+  const currentSession = this.controlSession();
+
+  this.renderer.removeClass(body, 'work-session');
+  this.renderer.removeClass(body, 'short-break-session');
+  this.renderer.removeClass(body, 'long-break-session');
+
+  this.renderer.addClass(body, `${currentSession}-session`);
+}
+
+/** Atualiza o título da página com base na sessão atual */
+updateTitleSession() {
+  const title = document.title;
+  const currentSession = this.controlSession(); 
+  if (currentSession === 'work') {
+    document.title = 'Sessão de Trabalho';
+  } else if (currentSession === 'shortBreak') {
+    document.title = 'Pausa Curta';
+  } else {
+    document.title = 'Pausa Longa';
+  }
+}
+
+/* Gera uma mensagem dinâmica com base na sessão atual para motivar o usuário */
+createDynamicMessageSession() {
+  const currentSession = this.controlSession();
+  if (currentSession === 'work') {
+    return 'Hora de focar! Mantenha a concentração e aproveite ao máximo este tempo de trabalho.';
+  } else if (currentSession === 'shortBreak') {
+    return 'Pausa curta! Levante-se, alongue-se e recarregue as energias para a próxima sessão de trabalho.';
+  } else {
+    return 'Pausa longa! Aproveite para relaxar, fazer algo que goste e se preparar para a próxima rodada de foco.';
+  }
 }
 
 setWorkDuration(value: string) {
