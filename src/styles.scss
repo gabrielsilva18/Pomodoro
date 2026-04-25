@@ -1,5 +1,16 @@
 /* You can add global styles to this file, and also import other style files */
 body {
-  margin: 0;
   background: radial-gradient(circle at top, #2a2a40, #1e1e2f);
+  transition: background 0.5s ease;
+}
+body.work-session {
+  background: linear-gradient(135deg, #2b2d42, #3a3d5c);
+}
+
+body.shortBreak-session {
+  background: linear-gradient(135deg, #4b706b, #6c9a8b);
+}
+
+body.longBreak-session {
+  background: linear-gradient(135deg, #3a506b, #5bc0be);
 }
