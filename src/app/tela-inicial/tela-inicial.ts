@@ -10,6 +10,7 @@ import {
   Renderer2,
   effect
 } from '@angular/core';
+import { last } from 'rxjs';
 
 type SessionType = 'work' | 'shortBreak' | 'longBreak';
 
@@ -158,7 +159,7 @@ export class TelaInicial implements OnDestroy, AfterViewInit {
       this.remainingSeconds.update(s => s - 1);
 
       // 🔥 salva a cada 5s (melhor performance)
-      if (this.remainingSeconds() % 5 === 0) {
+      if (this.remainingSeconds() % 1 === 0) {
         this.saveState();
       }
 
@@ -206,7 +207,8 @@ export class TelaInicial implements OnDestroy, AfterViewInit {
       remainingSeconds: this.remainingSeconds(),
       session: this.controlSession(),
       isRunning: this.isRunning(),
-      countCycles: this.countCycles()
+      countCycles: this.countCycles(),
+      lastUpdated: Date.now() // usando o tempo do relogio para que tambem seja possivel calcular o tempo decorrido offline e atualizar o timer corretamente
     };
 
     localStorage.setItem('pomodoroState', JSON.stringify(state));
@@ -214,23 +216,46 @@ export class TelaInicial implements OnDestroy, AfterViewInit {
 
   // 📥 Carregar estado
   private loadState() {
-    const savedState = localStorage.getItem('pomodoroState');
-    if (!savedState) return;
+  const savedState = localStorage.getItem('pomodoroState');
+  if (!savedState) return;
 
-    const state = JSON.parse(savedState);
+  const state = JSON.parse(savedState);
 
-    this.workDuration.set(state.workDuration);
-    this.shortBreakDuration.set(state.shortBreakDuration);
-    this.longBreakDuration.set(state.longBreakDuration);
+  this.workDuration.set(state.workDuration);
+  this.shortBreakDuration.set(state.shortBreakDuration);
+  this.longBreakDuration.set(state.longBreakDuration);
 
-    this.remainingSeconds.set(state.remainingSeconds);
-    this.controlSession.set(state.session);
+  this.controlSession.set(state.session);
+  this.countCycles.set(state.countCycles || 0);
 
-    this.countCycles.set(state.countCycles || 0);
+  let remaining = state.remainingSeconds;
 
-    // segurança
+  //  se estava rodando quando foi interrompido, calcula o tempo decorrido e atualiza o timer
+  if (state.isRunning && state.lastUpdate) {
+    const now = Date.now();
+    const diffMs = now - state.lastUpdate;
+    const diffSeconds = diffMs / 1000;
+
+    remaining = remaining - diffSeconds;
+   
+
+
+  }
+
+  // evita negativo
+  if (remaining <= 0) {
+    remaining = 0;
+  }
+
+  this.remainingSeconds.set(remaining);
+
+  //  se ainda tem tempo, volta a rodar
+  if (state.isRunning && remaining > 0) {
+    this.startTimer();
+  } else {
     this.isRunning.set(false);
   }
+}
 
   private startWork() {
     this.controlSession.set('work');
