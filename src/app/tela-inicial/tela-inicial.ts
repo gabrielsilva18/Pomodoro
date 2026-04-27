@@ -46,21 +46,16 @@ export class TelaInicial implements OnDestroy, AfterViewInit {
     return seconds > 0 ? this.formatTime(seconds) : '00:00';
   });
 
-  // 💬 Mensagem dinâmica (REATIVO)
+  // 💬 Mensagem dinâmica
   message = computed(() => {
     const session = this.controlSession();
 
-    if (session === 'work') {
-      return 'Hora de focar! Mantenha a concentração.';
-    } else if (session === 'shortBreak') {
-      return 'Pausa curta! Respire um pouco.';
-    } else {
-      return 'Pausa longa! Hora de relaxar.';
-    }
+    if (session === 'work') return 'Hora de focar! Mantenha a concentração.';
+    if (session === 'shortBreak') return 'Pausa curta! Respire um pouco.';
+    return 'Pausa longa! Hora de relaxar.';
   });
 
   constructor() {
-    // 🔥 REAÇÃO AUTOMÁTICA ao mudar sessão
     effect(() => {
       if (!this.isBrowser) return;
 
@@ -69,10 +64,19 @@ export class TelaInicial implements OnDestroy, AfterViewInit {
     });
   }
 
+  // 🚀 Inicialização correta
   ngAfterViewInit() {
-    if (this.isBrowser) {
+    if (!this.isBrowser) return;
+
+    this.loadState();
+
+    // se não houver estado salvo
+    if (!this.remainingSeconds()) {
       this.startWork();
     }
+
+    this.updateBodyClass();
+    this.updateTitleSession();
   }
 
   // 🎨 Atualiza classe do BODY
@@ -86,7 +90,7 @@ export class TelaInicial implements OnDestroy, AfterViewInit {
     this.renderer.addClass(body, `${currentSession}-session`);
   }
 
-  // 🏷️ Atualiza título da aba
+  // 🧠 Atualiza título
   updateTitleSession() {
     const session = this.controlSession();
 
@@ -99,7 +103,7 @@ export class TelaInicial implements OnDestroy, AfterViewInit {
     }
   }
 
-  // ⏱️ Define duração manual
+  // ⏱️ Define duração
   setWorkDuration(value: string) {
     const minutes = parseInt(value, 10);
 
@@ -112,9 +116,11 @@ export class TelaInicial implements OnDestroy, AfterViewInit {
     if (this.controlSession() === 'work') {
       this.remainingSeconds.set(this.workDuration());
     }
+
+    this.saveState();
   }
 
-  // ▶️ / ⏸️
+  // ▶ start/pause
   toggleTimer() {
     this.isRunning() ? this.pauseTimer() : this.startTimer();
   }
@@ -131,6 +137,8 @@ export class TelaInicial implements OnDestroy, AfterViewInit {
     } else {
       this.remainingSeconds.set(this.longBreakDuration());
     }
+
+    this.saveState();
   }
 
   private startTimer() {
@@ -149,12 +157,18 @@ export class TelaInicial implements OnDestroy, AfterViewInit {
 
       this.remainingSeconds.update(s => s - 1);
 
+      // 🔥 salva a cada 5s (melhor performance)
+      if (this.remainingSeconds() % 5 === 0) {
+        this.saveState();
+      }
+
     }, 1000);
   }
 
   private pauseTimer() {
     this.isRunning.set(false);
     this.clearInterval();
+    this.saveState();
   }
 
   private clearInterval() {
@@ -164,6 +178,7 @@ export class TelaInicial implements OnDestroy, AfterViewInit {
     }
   }
 
+  // 🔁 Transição de sessões
   private handleSessionEnd() {
     const current = this.controlSession();
 
@@ -182,19 +197,57 @@ export class TelaInicial implements OnDestroy, AfterViewInit {
     }
   }
 
+  // 💾 Salvar estado
+  private saveState() {
+    const state = {
+      workDuration: this.workDuration(),
+      shortBreakDuration: this.shortBreakDuration(),
+      longBreakDuration: this.longBreakDuration(),
+      remainingSeconds: this.remainingSeconds(),
+      session: this.controlSession(),
+      isRunning: this.isRunning(),
+      countCycles: this.countCycles()
+    };
+
+    localStorage.setItem('pomodoroState', JSON.stringify(state));
+  }
+
+  // 📥 Carregar estado
+  private loadState() {
+    const savedState = localStorage.getItem('pomodoroState');
+    if (!savedState) return;
+
+    const state = JSON.parse(savedState);
+
+    this.workDuration.set(state.workDuration);
+    this.shortBreakDuration.set(state.shortBreakDuration);
+    this.longBreakDuration.set(state.longBreakDuration);
+
+    this.remainingSeconds.set(state.remainingSeconds);
+    this.controlSession.set(state.session);
+
+    this.countCycles.set(state.countCycles || 0);
+
+    // segurança
+    this.isRunning.set(false);
+  }
+
   private startWork() {
     this.controlSession.set('work');
     this.remainingSeconds.set(this.workDuration());
+    this.saveState();
   }
 
   private startShortBreak() {
     this.controlSession.set('shortBreak');
     this.remainingSeconds.set(this.shortBreakDuration());
+    this.saveState();
   }
 
   private startLongBreak() {
     this.controlSession.set('longBreak');
     this.remainingSeconds.set(this.longBreakDuration());
+    this.saveState();
   }
 
   private formatTime(seconds: number): string {
