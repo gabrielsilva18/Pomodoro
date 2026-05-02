@@ -10,7 +10,6 @@ import {
   Renderer2,
   effect
 } from '@angular/core';
-import { last } from 'rxjs';
 
 type SessionType = 'work' | 'shortBreak' | 'longBreak';
 
@@ -65,13 +64,12 @@ export class TelaInicial implements OnDestroy, AfterViewInit {
     });
   }
 
-  // 🚀 Inicialização correta
+  // 🚀 Inicialização
   ngAfterViewInit() {
     if (!this.isBrowser) return;
 
     this.loadState();
 
-    // se não houver estado salvo
     if (!this.remainingSeconds()) {
       this.startWork();
     }
@@ -123,7 +121,9 @@ export class TelaInicial implements OnDestroy, AfterViewInit {
 
   // ▶ start/pause
   toggleTimer() {
+    this.unlockAudio();
     this.isRunning() ? this.pauseTimer() : this.startTimer();
+
   }
 
   resetTimer() {
@@ -158,10 +158,8 @@ export class TelaInicial implements OnDestroy, AfterViewInit {
 
       this.remainingSeconds.update(s => s - 1);
 
-      // 🔥 salva a cada 5s (melhor performance)
-      if (this.remainingSeconds() % 1 === 0) {
-        this.saveState();
-      }
+      // 💾 salva a cada segundo
+      this.saveState();
 
     }, 1000);
   }
@@ -183,6 +181,9 @@ export class TelaInicial implements OnDestroy, AfterViewInit {
   private handleSessionEnd() {
     const current = this.controlSession();
 
+    // 🔔 som da sessão que terminou
+    this.playSound(current);
+
     if (current === 'work') {
       this.countCycles.update(c => c + 1);
 
@@ -196,6 +197,7 @@ export class TelaInicial implements OnDestroy, AfterViewInit {
     } else {
       this.startWork();
     }
+
   }
 
   // 💾 Salvar estado
@@ -208,7 +210,7 @@ export class TelaInicial implements OnDestroy, AfterViewInit {
       session: this.controlSession(),
       isRunning: this.isRunning(),
       countCycles: this.countCycles(),
-      lastUpdated: Date.now() // usando o tempo do relogio para que tambem seja possivel calcular o tempo decorrido offline e atualizar o timer corretamente
+      lastUpdated: Date.now()
     };
 
     localStorage.setItem('pomodoroState', JSON.stringify(state));
@@ -216,46 +218,40 @@ export class TelaInicial implements OnDestroy, AfterViewInit {
 
   // 📥 Carregar estado
   private loadState() {
-  const savedState = localStorage.getItem('pomodoroState');
-  if (!savedState) return;
+    const savedState = localStorage.getItem('pomodoroState');
+    if (!savedState) return;
 
-  const state = JSON.parse(savedState);
+    const state = JSON.parse(savedState);
 
-  this.workDuration.set(state.workDuration);
-  this.shortBreakDuration.set(state.shortBreakDuration);
-  this.longBreakDuration.set(state.longBreakDuration);
+    this.workDuration.set(state.workDuration);
+    this.shortBreakDuration.set(state.shortBreakDuration);
+    this.longBreakDuration.set(state.longBreakDuration);
 
-  this.controlSession.set(state.session);
-  this.countCycles.set(state.countCycles || 0);
+    this.controlSession.set(state.session);
+    this.countCycles.set(state.countCycles || 0);
 
-  let remaining = state.remainingSeconds;
+    let remaining = state.remainingSeconds;
 
-  //  se estava rodando quando foi interrompido, calcula o tempo decorrido e atualiza o timer
-  if (state.isRunning && state.lastUpdate) {
-    const now = Date.now();
-    const diffMs = now - state.lastUpdate;
-    const diffSeconds = diffMs / 1000;
+    if (state.isRunning && state.lastUpdated) {
+      const now = Date.now();
+      const diffMs = now - state.lastUpdated;
+      const diffSeconds = Math.floor(diffMs / 1000);
 
-    remaining = remaining - diffSeconds;
-   
+      remaining = remaining - diffSeconds;
+    }
 
+    if (remaining <= 0) {
+      remaining = 0;
+    }
 
+    this.remainingSeconds.set(remaining);
+
+    if (state.isRunning && remaining > 0) {
+      this.startTimer();
+    } else {
+      this.isRunning.set(false);
+    }
   }
-
-  // evita negativo
-  if (remaining <= 0) {
-    remaining = 0;
-  }
-
-  this.remainingSeconds.set(remaining);
-
-  //  se ainda tem tempo, volta a rodar
-  if (state.isRunning && remaining > 0) {
-    this.startTimer();
-  } else {
-    this.isRunning.set(false);
-  }
-}
 
   private startWork() {
     this.controlSession.set('work');
@@ -275,6 +271,18 @@ export class TelaInicial implements OnDestroy, AfterViewInit {
     this.saveState();
   }
 
+  // 🔊 Sons
+  private playSound(type: 'work' | 'shortBreak' | 'longBreak') {
+    const sounds = {
+      work: '/fim_work.mp3',
+      shortBreak: '/fim_pausa_curta.mp3',
+      longBreak: '/fim_pausa_longa.mp3'
+    };
+
+    const audio = new Audio(sounds[type]);
+    audio.play().catch(() => {});
+  }
+
   private formatTime(seconds: number): string {
     const minutes = Math.floor(seconds / 60);
     const remaining = seconds % 60;
@@ -283,6 +291,19 @@ export class TelaInicial implements OnDestroy, AfterViewInit {
       .toString()
       .padStart(2, '0')}`;
   }
+
+private audioUnlocked = false;
+
+private unlockAudio() {
+  if (this.audioUnlocked) return;
+
+  const audio = new Audio('/fim_work.mp3');
+  audio.volume = 0;
+
+  audio.play()
+    .then(() => this.audioUnlocked = true)
+    .catch(() => {});
+}
 
   ngOnDestroy() {
     this.clearInterval();
